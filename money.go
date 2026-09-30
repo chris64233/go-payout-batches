@@ -2,6 +2,7 @@ package gopayoutbatches
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -103,7 +104,9 @@ func ParseMoney(s, defaultCurrency string) (Money, error) {
 			return Money{}, errors.New("money: integer part out of range: " + err.Error())
 		}
 	}
-	if whole > (1 << 62) {
+	// 整数部分必须保证 whole*100+frac 不溢出 int64，
+	// 否则大数会回绕成一个错误的正金额被静默接受。
+	if whole > (math.MaxInt64-99)/100 {
 		return Money{}, errors.New("money: amount out of range")
 	}
 	frac := int64(0)
@@ -120,9 +123,6 @@ func ParseMoney(s, defaultCurrency string) (Money, error) {
 	}
 	amount := whole*100 + frac
 	if neg {
-		if amount > (1<<63 - 1) {
-			return Money{}, errors.New("money: amount out of range")
-		}
 		amount = -amount
 	}
 	return NewMoney(amount, c)
